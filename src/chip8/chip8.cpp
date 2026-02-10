@@ -95,18 +95,19 @@ void Chip8::InterpretIncrementingOpcodes(){
     case 0x8000: // 0x8000 - Separated in another function
       Interpret8BasedOpcodes();
       break;
-    case 0x9000:
+    case 0x9000: // 0x9XY0 - Skips to next instruction if Vx != Vy
       if (cpu_registers[(cur_opcode & 0x0F00) >> 8] != cpu_registers[(cur_opcode & 0x00F0) >> 4])
         program_counter += 2;
       break;
-    case 0xA000:
+    case 0xA000: // 0xANNN - Puts NNN in address register (I)
       address_register = cur_opcode & 0x0FFF;
       break;
-    case 0xC000:
+    case 0xC000: // 0xCXNN - Puts rand() (0-255) & NN in Vx
       cpu_registers[(cur_opcode & 0x0F00) >> 8] = (rand() % 256) & (cur_opcode & 0x00FF);
       break;
-    case 0xD000:
+    case 0xD000: // OxDXYN - Draws sprite
       DrawSprite();
+      break;
     case 0xE000:
       InterpretEBasedOpcodes();
     case 0xF000:
@@ -134,27 +135,58 @@ void Chip8::Interpret8BasedOpcodes(){
       cpu_registers[(cur_opcode & 0x0F00) >> 8] = (cur_opcode & 0x00F0) >> 4;
       break;
     case 0x0001: // bitwise or (Vx | Vy)
-      cpu_registers[(cur_opcode & 0x0F00) >> 8] |= (cur_opcode & 0x00F0) >> 4;
+      cpu_registers[(cur_opcode & 0x00F0) >> 4] |= (cur_opcode & 0x0F00) >> 8;
       break;
     case 0x0002: // bitwise and (Vx & Vy)
-      cpu_registers[(cur_opcode & 0x0F00) >> 8] &= (cur_opcode & 0x00F0) >> 4;
+      cpu_registers[(cur_opcode & 0x00F0) >> 4] &= (cur_opcode & 0x0F00) >> 8;
       break;
     case 0x0003: // bitwise xor (Vx ^ Vy)
-      cpu_registers[(cur_opcode & 0x0F00) >> 8] ^= (cur_opcode & 0x00F0) >> 4;
+      cpu_registers[(cur_opcode & 0x00F0) >> 4] ^= (cur_opcode & 0x0F00) >> 8;
       break;
     case 0x0004: // Sum (Vx += Vy)
+      cpu_registers[(cur_opcode & 0x00F0) >> 4] += (cur_opcode & 0x0F00) >> 8;
       break;
     case 0x0005: // Subtraction (Vx -= Vy)
+      cpu_registers[(cur_opcode & 0x00F0) >> 4] -= (cur_opcode & 0x0F00) >> 8;
       break;
     case 0x0006: // Shifts Vx >>= 1, LSB in VF
+      unsigned char lsb = cpu_registers[(cur_opcode & 0x00F0) >> 4];
+      cpu_registers[(cur_opcode & 0x00F0) >> 4] = cpu_registers[(cur_opcode & 0x00F0) >> 4] >> 1;
+      lsb &= ~lsb + 1; // Careful with party tricks. This is the operation that gets only the LSB.
+      cpu_registers[kRegisterQty - 1] = lsb;
       break;
-    case 0x0007: // Subtraction (Vx = Vy - Vx)
+    case 0x0007: // Subtraction (Vx = Vy - Vx), unsets VF if underflow; 
+      if (cpu_registers[(cur_opcode & 0x0F00) >> 8] >= cpu_registers[(cur_opcode & 0x00F0) >> 4]) {
+        cpu_registers[kRegisterQty - 1] = 1;
+      }
+      else{
+        cpu_registers[kRegisterQty - 1] = 0;
+      }
+      cpu_registers[(cur_opcode & 0x00F0) >> 4] = cpu_registers[(cur_opcode & 0x0F00) >> 8] - cpu_registers[(cur_opcode & 0x00F0) >> 4];
       break;
     case 0x000E: // Shifts Vx <<= 1, MSB in VF
+      unsigned char msb = cpu_registers[(cur_opcode & 0x00F0) >> 4];
+      msb >> 7;
+      cpu_registers[(cur_opcode & 0x00F0) >> 4] >> 1;
+      cpu_registers[kRegisterQty - 1] = msb;
       break;
     default:
       cerr << "Unknown opcode call: " << cur_opcode << "\n";
   }
+}
+
+void Chip8::DrawSprite(){
+  unsigned short x = cur_opcode & 0x0F00 >> 8;
+  unsigned short y = cur_opcode & 0x00F0 >> 4;
+  unsigned short n = cur_opcode & 0x000F;
+
+  cpu_registers[0xF] = 0;
+  for(int i = 0; i < n; i++){
+    for(int j = 0; j < 8; j++){
+      
+    }
+  }
+  // ...
 }
 
 void Chip8::UpdateTimers(){

@@ -7,8 +7,6 @@
 
 using std::vector, std::function, std::cout, std::cerr, std::map;
 
-using Opcode = unsigned short;
-
 class Chip8{
   public:
     Chip8();
@@ -43,5 +41,5 @@ class Chip8{
 
     unsigned short address_register; // I
 
-    Opcode cur_opcode;
+    unsigned short cur_opcode;
 };
