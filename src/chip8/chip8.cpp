@@ -94,6 +94,7 @@ void Chip8::InterpretIncrementingOpcodes(){
       break;
     case 0x8000: // 0x8000 - Separated in another function
       Interpret8BasedOpcodes();
+      program_counter += 2;
       break;
     case 0x9000: // 0x9XY0 - Skips to next instruction if Vx != Vy
       if (cpu_registers[(cur_opcode & 0x0F00) >> 8] != cpu_registers[(cur_opcode & 0x00F0) >> 4])
@@ -132,44 +133,61 @@ void Chip8::Interpret0BasedOpcodes(){
 void Chip8::Interpret8BasedOpcodes(){
   switch (cur_opcode & 0x000F){
     case 0x0000: // assigns Vx to Vy
-      cpu_registers[(cur_opcode & 0x0F00) >> 8] = (cur_opcode & 0x00F0) >> 4;
+      cpu_registers[(cur_opcode & 0x00F0) >> 4] = (cur_opcode & 0x0F00) >> 8;
       break;
+
     case 0x0001: // bitwise or (Vx | Vy)
-      cpu_registers[(cur_opcode & 0x00F0) >> 4] |= (cur_opcode & 0x0F00) >> 8;
+      cpu_registers[(cur_opcode & 0x0F00) >> 8] |= (cur_opcode & 0x00F0) >> 4;
       break;
+
     case 0x0002: // bitwise and (Vx & Vy)
-      cpu_registers[(cur_opcode & 0x00F0) >> 4] &= (cur_opcode & 0x0F00) >> 8;
+      cpu_registers[(cur_opcode & 0x0F00) >> 8] &= (cur_opcode & 0x00F0) >> 4;
       break;
+
     case 0x0003: // bitwise xor (Vx ^ Vy)
-      cpu_registers[(cur_opcode & 0x00F0) >> 4] ^= (cur_opcode & 0x0F00) >> 8;
+      cpu_registers[(cur_opcode & 0x0F00) >> 8] ^= (cur_opcode & 0x00F0) >> 4;
       break;
-    case 0x0004: // Sum (Vx += Vy)
-      cpu_registers[(cur_opcode & 0x00F0) >> 4] += (cur_opcode & 0x0F00) >> 8;
-      break;
-    case 0x0005: // Subtraction (Vx -= Vy)
-      cpu_registers[(cur_opcode & 0x00F0) >> 4] -= (cur_opcode & 0x0F00) >> 8;
-      break;
-    case 0x0006: // Shifts Vx >>= 1, LSB in VF
-      unsigned char lsb = cpu_registers[(cur_opcode & 0x00F0) >> 4];
-      cpu_registers[(cur_opcode & 0x00F0) >> 4] = cpu_registers[(cur_opcode & 0x00F0) >> 4] >> 1;
-      lsb &= ~lsb + 1; // Careful with party tricks. This is the operation that gets only the LSB.
-      cpu_registers[kRegisterQty - 1] = lsb;
-      break;
-    case 0x0007: // Subtraction (Vx = Vy - Vx), unsets VF if underflow; 
-      if (cpu_registers[(cur_opcode & 0x0F00) >> 8] >= cpu_registers[(cur_opcode & 0x00F0) >> 4]) {
+  
+    case 0x0004: // Sum (Vx += Vy). If needs carry, sets VF
+      if (cpu_registers[(cur_opcode & 0x0F00) >> 8] > (0xFF - (cur_opcode & 0x00F0) >> 4)){
         cpu_registers[kRegisterQty - 1] = 1;
       }
       else{
         cpu_registers[kRegisterQty - 1] = 0;
       }
-      cpu_registers[(cur_opcode & 0x00F0) >> 4] = cpu_registers[(cur_opcode & 0x0F00) >> 8] - cpu_registers[(cur_opcode & 0x00F0) >> 4];
+      cpu_registers[(cur_opcode & 0x0F00) >> 8] += cpu_registers[(cur_opcode & 0x00F0) >> 4];
       break;
+  
+    case 0x0005: // Subtraction (Vx -= Vy) If needs borrow, unsets VF.
+      if (cpu_registers[(cur_opcode & 0x00F0) >> 4] > (0xFF - (cur_opcode & 0x0F00) >> 8)){
+        cpu_registers[kRegisterQty - 1] = 0;
+      }
+      else{
+        cpu_registers[kRegisterQty - 1] = 1;
+      }
+      cpu_registers[(cur_opcode & 0x0F00) >> 8] -= cpu_registers[(cur_opcode & 0x00F0) >> 4];
+      break;
+
+    case 0x0006: // Shifts Vx >>= 1, LSB in VF
+      cpu_registers[kRegisterQty - 1] = cpu_registers[(cur_opcode & 0x0F00) >> 8] & 0x1;
+      cpu_registers[(cur_opcode & 0x0F00) >> 8] >>= 1;
+      break;
+
+    case 0x0007: // Subtraction (Vx = Vy - Vx), unsets VF if underflow; 
+      if (cpu_registers[(cur_opcode & 0x00F0) >> 4] >= cpu_registers[(cur_opcode & 0x0F00) >> 8]) {
+        cpu_registers[kRegisterQty - 1] = 1;
+      }
+      else{
+        cpu_registers[kRegisterQty - 1] = 0;
+      }
+      cpu_registers[(cur_opcode & 0x0F00) >> 8] = cpu_registers[(cur_opcode & 0x00F0) >> 4] - cpu_registers[(cur_opcode & 0x0F00) >> 8];
+      break;
+
     case 0x000E: // Shifts Vx <<= 1, MSB in VF
-      unsigned char msb = cpu_registers[(cur_opcode & 0x00F0) >> 4];
-      msb >> 7;
-      cpu_registers[(cur_opcode & 0x00F0) >> 4] >> 1;
-      cpu_registers[kRegisterQty - 1] = msb;
+      cpu_registers[kRegisterQty - 1] = cpu_registers[(cur_opcode & 0x0F00) >> 8] >> 7;
+      cpu_registers[(cur_opcode & 0x0F00) >> 8] <<= 1;
       break;
+
     default:
       cerr << "Unknown opcode call: " << cur_opcode << "\n";
   }
