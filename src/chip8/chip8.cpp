@@ -115,6 +115,7 @@ void Chip8::InterpretIncrementingOpcodes(){
       InterpretFBasedOpcodes();
     default:
       cerr << "Unknown opcode call: " << cur_opcode << "\n";
+      break;
   }
   program_counter += 2;
 }
@@ -190,6 +191,7 @@ void Chip8::Interpret8BasedOpcodes(){
 
     default:
       cerr << "Unknown opcode call: " << cur_opcode << "\n";
+      break;
   }
 }
 
@@ -197,14 +199,38 @@ void Chip8::DrawSprite(){
   unsigned short x = cur_opcode & 0x0F00 >> 8;
   unsigned short y = cur_opcode & 0x00F0 >> 4;
   unsigned short n = cur_opcode & 0x000F;
+  unsigned short pixel;
 
   cpu_registers[0xF] = 0;
-  for(int i = 0; i < n; i++){
-    for(int j = 0; j < 8; j++){
-      
+  for(int y_line = 0; y_line < n; y_line++){
+    pixel = memory[address_register + y_line];      // value of address register does not change
+    for(int x_line = 0; x_line < 8; x_line++){      // sprites have a defined size
+      if (pixel & (0x80 >> x_line) != 0){           // Checks if memory has the pixel marked for drawing
+        if (screen_pixels[(x + x_line + ((y + y_line) * 64))] == 1){
+          cpu_registers[0xF] = 1;                   // Marks VF if it will flip from set to unset.
+        }
+        screen_pixels[x + x_line + ((y + y_line) * 64)] ^= 1; // draws through bitwise OR.
+      }
     }
   }
-  // ...
+  draw_flag = true;
+}
+
+void Chip8::InterpretEBasedOpcodes(){
+  unsigned char vf_lowest_nibble = cpu_registers[(cur_opcode & 0x0F00 >> 8)];
+  switch (cur_opcode & 0x00FF){
+    case 0x009E: // skip next instruction if key in VX is pressed (only consider lowest nibble)
+      if (keypad_states[vf_lowest_nibble] != 0)
+        program_counter += 2;
+      break;
+    case 0x00A1: // skip next instruction if key in VX is not pressed (only consider lowest nibble)
+      if (keypad_states[vf_lowest_nibble] == 0)
+        program_counter += 2;
+      break;
+    default:
+      cerr << "Unknown opcode call: " << cur_opcode << "\n";
+      break;
+  }
 }
 
 void Chip8::UpdateTimers(){

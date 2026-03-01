@@ -9,7 +9,10 @@ using std::vector, std::function, std::cout, std::cerr, std::map;
 
 class Chip8{
   public:
+    bool draw_flag;
+    
     Chip8();
+
     void ReadOpcode();
     void InterpretOpcode();
     void InterpretIncrementingOpcodes();
@@ -34,7 +37,7 @@ class Chip8{
     vector<unsigned char> memory; // each Opcode takes two bytes. Memory represents Opcodes as memory[i] >> 8 | memory[i+1].
     vector<unsigned char> cpu_registers; // V0 to VF
     vector<unsigned char> keypad_states;
-    vector<bool> screen_pixels;
+    vector<unsigned char> screen_pixels;
 
     vector<unsigned short> stack; // levels of instruction calls
     unsigned short stack_pointer; // Points to current stack call
